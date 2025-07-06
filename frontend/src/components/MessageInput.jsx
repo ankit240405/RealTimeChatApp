@@ -1,7 +1,8 @@
 import { useRef, useState } from "react";
 import { useChatStore } from "../store/useChatStore";
 import { useAuthStore } from "../store/useAuthStore";
-import { Image, Send, X } from "lucide-react";
+import { Image, Send, X, Smile } from "lucide-react";
+import EmojiPicker from "emoji-picker-react";
 import toast from "react-hot-toast";
 
 let typingTimeout;
@@ -9,6 +10,7 @@ let typingTimeout;
 const MessageInput = () => {
   const [text, setText] = useState("");
   const [imagePreview, setImagePreview] = useState(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const fileInputRef = useRef(null);
 
   const { sendMessage, selectedUser } = useChatStore();
@@ -47,6 +49,10 @@ const MessageInput = () => {
     }
   };
 
+  const handleEmojiClick = (emojiData) => {
+    setText((prev) => prev + emojiData.emoji);
+  };
+
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!text.trim() && !imagePreview) return;
@@ -59,9 +65,9 @@ const MessageInput = () => {
 
       setText("");
       setImagePreview(null);
+      setShowEmojiPicker(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
 
-      // Stop typing on send
       if (selectedUser) {
         socket?.emit("stop-typing", { to: selectedUser._id });
       }
@@ -71,7 +77,7 @@ const MessageInput = () => {
   };
 
   return (
-    <div className="p-4 w-full">
+    <div className="p-4 w-full relative">
       {imagePreview && (
         <div className="mb-3 flex items-center gap-2">
           <div className="relative">
@@ -92,7 +98,7 @@ const MessageInput = () => {
       )}
 
       <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-        <div className="flex-1 flex gap-2">
+        <div className="flex-1 flex gap-2 relative">
           <input
             type="text"
             className="w-full input input-bordered rounded-lg input-sm sm:input-md"
@@ -100,6 +106,7 @@ const MessageInput = () => {
             value={text}
             onChange={handleTextChange}
           />
+
           <input
             type="file"
             accept="image/*"
@@ -108,14 +115,34 @@ const MessageInput = () => {
             onChange={handleImageChange}
           />
 
+          {/* Image Button */}
           <button
             type="button"
-            className={`hidden sm:flex btn btn-circle ${imagePreview ? "text-emerald-500" : "text-zinc-400"}`}
+            className={`hidden sm:flex btn btn-circle ${
+              imagePreview ? "text-emerald-500" : "text-zinc-400"
+            }`}
             onClick={() => fileInputRef.current?.click()}
           >
             <Image size={20} />
           </button>
+
+          {/* Emoji Button */}
+          <button
+            type="button"
+            className="btn btn-circle text-zinc-500"
+            onClick={() => setShowEmojiPicker((prev) => !prev)}
+          >
+            <Smile size={20} />
+          </button>
+
+          {/* Emoji Picker */}
+          {showEmojiPicker && (
+            <div className="absolute bottom-12 right-0 z-50">
+              <EmojiPicker onEmojiClick={handleEmojiClick} />
+            </div>
+          )}
         </div>
+
         <button
           type="submit"
           className="btn btn-sm btn-circle"
