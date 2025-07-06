@@ -1,5 +1,5 @@
 import { useChatStore } from "../store/useChatStore";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import ChatHeader from "./ChatHeader";
 import MessageInput from "./MessageInput";
@@ -16,22 +16,44 @@ const ChatContainer = () => {
     subscribeToMessages,
     unsubscribeFromMessages,
   } = useChatStore();
-  const { authUser } = useAuthStore();
+  const { authUser, socket } = useAuthStore();
   const messageEndRef = useRef(null);
+
+  const [isTyping, setIsTyping] = useState(false);
 
   useEffect(() => {
     getMessages(selectedUser._id);
-
     subscribeToMessages();
 
     return () => unsubscribeFromMessages();
-  }, [selectedUser._id, getMessages, subscribeToMessages, unsubscribeFromMessages]);
+  }, [selectedUser._id]);
 
   useEffect(() => {
     if (messageEndRef.current && messages) {
       messageEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages]);
+
+  // 👇 Typing Indicator Listeners
+  useEffect(() => {
+    if (!socket || !selectedUser) return;
+
+    const handleTyping = ({ from }) => {
+      if (from === selectedUser._id) setIsTyping(true);
+    };
+
+    const handleStopTyping = ({ from }) => {
+      if (from === selectedUser._id) setIsTyping(false);
+    };
+
+    socket.on("typing", handleTyping);
+    socket.on("stop-typing", handleStopTyping);
+
+    return () => {
+      socket.off("typing", handleTyping);
+      socket.off("stop-typing", handleStopTyping);
+    };
+  }, [socket, selectedUser]);
 
   if (isMessagesLoading) {
     return (
@@ -83,10 +105,18 @@ const ChatContainer = () => {
             </div>
           </div>
         ))}
+
+        {/* Typing indicator */}
+        {isTyping && (
+          <div className="text-sm text-zinc-500 italic px-2">
+            {selectedUser?.fullName || "User"} is typing...
+          </div>
+        )}
       </div>
 
       <MessageInput />
     </div>
   );
 };
+
 export default ChatContainer;

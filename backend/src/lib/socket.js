@@ -11,12 +11,12 @@ const io = new Server(server, {
   },
 });
 
+// Used to store online users
+const userSocketMap = {}; // { userId: socketId }
+
 export function getReceiverSocketId(userId) {
   return userSocketMap[userId];
 }
-
-// used to store online users
-const userSocketMap = {}; // {userId: socketId}
 
 io.on("connection", (socket) => {
   console.log("A user connected", socket.id);
@@ -24,8 +24,25 @@ io.on("connection", (socket) => {
   const userId = socket.handshake.query.userId;
   if (userId) userSocketMap[userId] = socket.id;
 
+  // Send updated online users list
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
 
+  // === TYPING INDICATOR EVENTS ===
+  socket.on("typing", ({ to }) => {
+    const receiverSocketId = userSocketMap[to];
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("typing", { from: userId });
+    }
+  });
+
+  socket.on("stop-typing", ({ to }) => {
+    const receiverSocketId = userSocketMap[to];
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("stop-typing", { from: userId });
+    }
+  });
+
+  // === DISCONNECT ===
   socket.on("disconnect", () => {
     console.log("A user disconnected", socket.id);
     delete userSocketMap[userId];
